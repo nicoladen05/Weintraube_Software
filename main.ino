@@ -1,7 +1,5 @@
-#define STEPPER_PIN_1 9
-#define STEPPER_PIN_2 10
-#define STEPPER_PIN_3 11
-#define STEPPER_PIN_4 12
+#define DIR_PIN 12
+#define STEP_PIN 13
 
 #define JOYX_PIN A0
 #define JOYY_PIN A1
@@ -25,11 +23,9 @@ int up_step_count = 0;
 
 
 void setup() {
-pinMode(STEPPER_PIN_1, OUTPUT);
-pinMode(STEPPER_PIN_2, OUTPUT);
-pinMode(STEPPER_PIN_3, OUTPUT);
-pinMode(STEPPER_PIN_4, OUTPUT);
-
+pinMode(DIR_PIN, OUTPUT);
+pinMode(STEP_PIN, OUTPUT);
+    
 pinMode(JOY_CLICK_PIN, INPUT_PULLUP);
 
 pinMode(TOUCH_SENSOR_PIN, INPUT_PULLUP);
@@ -44,50 +40,60 @@ beep(50, 1);
 }
 
 void loop() {
+    Serial.println(measurement_state);
+    
     joyX = analogRead(JOYX_PIN);
     joyY = analogRead(JOYY_PIN);
     joyClick = digitalRead(JOY_CLICK_PIN);
 
     if (joyX >= 510) { //stick down
-        step_delay = map(joyX, 510, 1023, 50, 2);
-
-        OneStep(false);
-        delay(step_delay);
-        step_count++;
+        digitalWrite(DIR_PIN, LOW);
+        digitalWrite(STEP_PIN, HIGH);
+        digitalWrite(STEP_PIN, LOW);
     }
 
     if (joyX <= 500) { //stick up
-        step_delay = map(joyX, 500, 0, 50, 2);
-
-        OneStep(true);
-        delay(step_delay);
+        digitalWrite(DIR_PIN, HIGH);
+        digitalWrite(STEP_PIN, HIGH);
+        digitalWrite(STEP_PIN, LOW);
     }
 
     if (joyClick == LOW) {
         // start the measurement
-        measure_state = 1
+        measurement_state = 1;
+        beep(50,3);
     }
 
     //push upward
     if (measurement_state == 1) {
-        OneStep(true);
+        beep(50,2);
+        digitalWrite(DIR_PIN, HIGH);
+        digitalWrite(STEP_PIN, HIGH);
+        digitalWrite(STEP_PIN, LOW);
 
         up_step_count++;
 
-        //stop once up_step_count reaches 5k
-        if (up_step_count == 5000) {
+        //stop once up_step_count reaches 500
+        if (up_step_count == 500) {
             measurement_state = 2;
+            beep(50, 1);
+            delay(50);
+            beep(50, 1);
             step_count = 0;
         }
     }
 
     //move downwards until TOUCH_SENSOR_PIN reads HIGH
     if (measurement_state == 2) {
-        OneStep(false);
+        digitalWrite(DIR_PIN, LOW);
+        digitalWrite(STEP_PIN, HIGH);
+        digitalWrite(STEP_PIN, LOW);
+
         step_count++;
 
         if (digitalRead(TOUCH_SENSOR_PIN) == HIGH) {
-            measurement_state == 3;
+            beep(200, 1);
+            measurement_state = 3;
 
         }
     }
@@ -96,35 +102,27 @@ void loop() {
     if (measurement_state == 3);
         Serial.println("Distance measured: ");
         Serial.print(step_count);
+        measurement_state = 0;   
 }
 
 
 void OneStep(bool dir){
+    if (dir == true) {
+        digitalWrite(DIR_PIN, HIGH);
+        digitalWrite(STEP_PIN, HIGH);
+        delay(1);
+        digitalWrite(STEP_PIN, LOW);
+        digitalWrite(DIR_PIN, LOW);
+    }
+    else {
+        digitalWrite(DIR_PIN, LOW);
+        digitalWrite(STEP_PIN, HIGH);
+        delay(1);
+        digitalWrite(STEP_PIN, LOW);
+    }
 
-  int set1[4]={HIGH,LOW,LOW,LOW};
-  int set2[4]={LOW,HIGH,LOW,LOW};
-  int set3[4]={LOW,LOW,HIGH,LOW};
-  int set4[4]={LOW,LOW,LOW,HIGH};
-
-  if (dir){
-  digitalWrite(STEPPER_PIN_1, set1[step_number]);
-  digitalWrite(STEPPER_PIN_2, set2[step_number]);
-  digitalWrite(STEPPER_PIN_3, set3[step_number]);
-  digitalWrite(STEPPER_PIN_4, set4[step_number]);
-  }
-
-  else {
-  digitalWrite(STEPPER_PIN_1, set4[step_number]);
-  digitalWrite(STEPPER_PIN_2, set3[step_number]);
-  digitalWrite(STEPPER_PIN_3, set2[step_number]);
-  digitalWrite(STEPPER_PIN_4, set1[step_number]);
-  }
-  
-step_number++;
-  if(step_number > 3){
-    step_number = 0;
-  }
 }
+
 
 void beep(int length, int pitch) {
     for (int i = 0; i < length; i++) {
